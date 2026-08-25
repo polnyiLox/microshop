@@ -177,10 +177,6 @@ services:
       APP_CONFIG__API__HOST: 0.0.0.0
       APP_CONFIG__API__PORT: "8000"
       APP_CONFIG__API__RELOAD: "false"
-      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '["http://localhost:3000"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "true"
       APP_CONFIG__JWT_AUTH__PRIVATE_KEY_PATH: certs/jwt-private.pem
       APP_CONFIG__JWT_AUTH__PUBLIC_KEY_PATH: certs/jwt-public.pem
       APP_CONFIG__JWT_AUTH__ALGORITHM: RS256
@@ -218,10 +214,6 @@ services:
       APP_CONFIG__API__HOST: 0.0.0.0
       APP_CONFIG__API__PORT: "8000"
       APP_CONFIG__API__RELOAD: "false"
-      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
       <<: *rabbitmq-environment
       APP_CONFIG__RABBITMQ__VHOST: /
     command: [alembic, upgrade, head]
@@ -254,10 +246,6 @@ services:
       APP_CONFIG__API__HOST: 0.0.0.0
       APP_CONFIG__API__PORT: "8000"
       APP_CONFIG__API__RELOAD: "false"
-      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
       APP_CONFIG__CATALOG_CLIENT__BASE_URL: http://catalog-service:8000/v1
       <<: [*rabbitmq-environment, *kafka-environment]
       APP_CONFIG__KAFKA__CLIENT_ID: order-service
@@ -296,10 +284,6 @@ services:
       APP_CONFIG__API__HOST: 0.0.0.0
       APP_CONFIG__API__PORT: "8000"
       APP_CONFIG__API__RELOAD: "false"
-      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
       <<: [*rabbitmq-environment, *kafka-environment]
       APP_CONFIG__RABBITMQ__VHOST: /
       APP_CONFIG__KAFKA__CLIENT_ID: payment-service
@@ -336,10 +320,6 @@ services:
       APP_CONFIG__API__HOST: 0.0.0.0
       APP_CONFIG__API__PORT: "8000"
       APP_CONFIG__API__RELOAD: "false"
-      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
       <<: *rabbitmq-environment
       APP_CONFIG__RABBITMQ__VHOST: /
     command: [alembic, upgrade, head]
@@ -374,10 +354,6 @@ services:
       APP_CONFIG__API__HOST: 0.0.0.0
       APP_CONFIG__API__PORT: "8000"
       APP_CONFIG__API__RELOAD: "false"
-      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
-      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
       APP_CONFIG__KAFKA__BOOTSTRAP_SERVERS: kafka:29092
       APP_CONFIG__KAFKA__CLIENT_ID: analytics-service
       APP_CONFIG__KAFKA__GROUP_ID: analytics-service
