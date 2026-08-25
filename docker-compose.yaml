@@ -138,6 +138,20 @@ services:
       start_period: 10s
     networks: [backend]
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    networks: [backend]
+
   kafka:
     image: apache/kafka:4.3.1
     restart: unless-stopped
@@ -217,6 +231,12 @@ services:
       APP_CONFIG__API__RELOAD: "false"
       <<: *rabbitmq-environment
       APP_CONFIG__RABBITMQ__VHOST: /
+      APP_CONFIG__REDIS__HOST: redis
+      APP_CONFIG__REDIS__PORT: "6379"
+      APP_CONFIG__REDIS__DB: "0"
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__TTL_SECONDS: "60"
+      APP_CONFIG__REDIS__KEY_PREFIX: catalog
     command: [alembic, upgrade, head]
     depends_on:
       catalog-db:
@@ -232,6 +252,8 @@ services:
       catalog-migrate:
         condition: service_completed_successfully
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck: *api-healthcheck
 
