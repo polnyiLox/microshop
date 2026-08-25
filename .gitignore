@@ -1,0 +1,13 @@
+.env
+.pytest_cache/
+*.zip
+
+# Each service is maintained in its own Git repository.
+analytics-service/
+api-gateway/
+auth-service/
+catalog-service/
+frontend/
+notification-service/
+order-service/
+payment-service/

@@ -1,0 +1,469 @@
+name: microshop
+
+x-postgres-healthcheck: &postgres-healthcheck
+  interval: 5s
+  timeout: 5s
+  retries: 20
+  start_period: 5s
+
+x-api-healthcheck: &api-healthcheck
+  test:
+    - CMD
+    - python
+    - -c
+    - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 15s
+
+x-python-service: &python-service
+  restart: unless-stopped
+  init: true
+  networks:
+    - backend
+
+x-rabbitmq-environment: &rabbitmq-environment
+  APP_CONFIG__RABBITMQ__USER: microservices
+  APP_CONFIG__RABBITMQ__PASSWORD: ${RABBITMQ_PASSWORD:-microshop_dev_password}
+  APP_CONFIG__RABBITMQ__HOST: rabbitmq
+  APP_CONFIG__RABBITMQ__PORT: "5672"
+
+x-kafka-environment: &kafka-environment
+  APP_CONFIG__KAFKA__BOOTSTRAP_SERVERS: kafka:29092
+  APP_CONFIG__KAFKA__ACKS: all
+
+services:
+  auth-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: microshop
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_DB: auth_service_db
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *postgres-healthcheck
+      test: [CMD-SHELL, "pg_isready -U microshop -d auth_service_db"]
+    networks: [backend]
+
+  catalog-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: microshop
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_DB: catalog_service_db
+    volumes:
+      - catalog_db_data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *postgres-healthcheck
+      test: [CMD-SHELL, "pg_isready -U microshop -d catalog_service_db"]
+    networks: [backend]
+
+  order-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: microshop
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_DB: order_service_db
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *postgres-healthcheck
+      test: [CMD-SHELL, "pg_isready -U microshop -d order_service_db"]
+    networks: [backend]
+
+  payment-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: microshop
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_DB: payment_service_db
+    volumes:
+      - payment_db_data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *postgres-healthcheck
+      test: [CMD-SHELL, "pg_isready -U microshop -d payment_service_db"]
+    networks: [backend]
+
+  notification-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: microshop
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_DB: notification_service_db
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *postgres-healthcheck
+      test: [CMD-SHELL, "pg_isready -U microshop -d notification_service_db"]
+    networks: [backend]
+
+  mongodb:
+    image: mongo:8.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: microshop
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-microshop_dev_password}
+      MONGO_INITDB_DATABASE: analytics_service_db
+    volumes:
+      - analytics_db_data:/data/db
+    healthcheck:
+      test: [CMD-SHELL, "mongosh --quiet --username microshop --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval \"db.adminCommand('ping').ok\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [backend]
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: microservices
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-microshop_dev_password}
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [backend]
+
+  kafka:
+    image: apache/kafka:4.3.1
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [CMD-SHELL, "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks: [backend]
+
+  auth-migrate:
+    build: ./auth-service
+    environment: &auth-environment
+      APP_CONFIG__DB__USER: microshop
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__HOST: auth-db
+      APP_CONFIG__DB__PORT: "5432"
+      APP_CONFIG__DB__NAME: auth_service_db
+      APP_CONFIG__API__V1_PREFIX: /v1
+      APP_CONFIG__API__HOST: 0.0.0.0
+      APP_CONFIG__API__PORT: "8000"
+      APP_CONFIG__API__RELOAD: "false"
+      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '["http://localhost:3000"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "true"
+      APP_CONFIG__JWT_AUTH__PRIVATE_KEY_PATH: certs/jwt-private.pem
+      APP_CONFIG__JWT_AUTH__PUBLIC_KEY_PATH: certs/jwt-public.pem
+      APP_CONFIG__JWT_AUTH__ALGORITHM: RS256
+      APP_CONFIG__JWT_AUTH__ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      APP_CONFIG__JWT_AUTH__REFRESH_TOKEN_EXPIRE_DAYS: "7"
+      APP_CONFIG__REFRESH_TOKEN_COOKIES__KEY: refresh_token
+      APP_CONFIG__REFRESH_TOKEN_COOKIES__SECURE: "false"
+      APP_CONFIG__REFRESH_TOKEN_COOKIES__HTTPONLY: "true"
+      APP_CONFIG__REFRESH_TOKEN_COOKIES__SAME_SITE: lax
+    command: [alembic, upgrade, head]
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  auth-service:
+    <<: *python-service
+    build: ./auth-service
+    environment: *auth-environment
+    depends_on:
+      auth-migrate:
+        condition: service_completed_successfully
+    healthcheck: *api-healthcheck
+
+  catalog-service:
+    <<: *python-service
+    build: ./catalog-service
+    environment:
+      APP_CONFIG__DB__USER: microshop
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__HOST: catalog-db
+      APP_CONFIG__DB__PORT: "5432"
+      APP_CONFIG__DB__NAME: catalog_service_db
+      APP_CONFIG__API__V1_PREFIX: /v1
+      APP_CONFIG__API__HOST: 0.0.0.0
+      APP_CONFIG__API__PORT: "8000"
+      APP_CONFIG__API__RELOAD: "false"
+      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
+      <<: *rabbitmq-environment
+      APP_CONFIG__RABBITMQ__VHOST: /
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck: *api-healthcheck
+
+  order-migrate:
+    build: ./order-service
+    environment: &order-environment
+      APP_CONFIG__DB__USER: microshop
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__HOST: order-db
+      APP_CONFIG__DB__PORT: "5432"
+      APP_CONFIG__DB__NAME: order_service_db
+      APP_CONFIG__API__V1_PREFIX: /v1
+      APP_CONFIG__API__HOST: 0.0.0.0
+      APP_CONFIG__API__PORT: "8000"
+      APP_CONFIG__API__RELOAD: "false"
+      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
+      APP_CONFIG__CATALOG_CLIENT__BASE_URL: http://catalog-service:8000/v1
+      <<: [*rabbitmq-environment, *kafka-environment]
+      APP_CONFIG__KAFKA__CLIENT_ID: order-service
+      APP_CONFIG__ANALYTICS_TOPICS__ORDER_EVENTS_TOPIC: order.analytics.events
+    command: [alembic, upgrade, head]
+    depends_on:
+      order-db:
+        condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  order-service:
+    <<: *python-service
+    build: ./order-service
+    environment: *order-environment
+    depends_on:
+      order-migrate:
+        condition: service_completed_successfully
+      catalog-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck: *api-healthcheck
+
+  payment-migrate:
+    build: ./payment-service
+    environment: &payment-environment
+      APP_CONFIG__DB__USER: microshop
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__HOST: payment-db
+      APP_CONFIG__DB__PORT: "5432"
+      APP_CONFIG__DB__NAME: payment_service_db
+      APP_CONFIG__API__V1_PREFIX: /v1
+      APP_CONFIG__API__HOST: 0.0.0.0
+      APP_CONFIG__API__PORT: "8000"
+      APP_CONFIG__API__RELOAD: "false"
+      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
+      <<: [*rabbitmq-environment, *kafka-environment]
+      APP_CONFIG__RABBITMQ__VHOST: /
+      APP_CONFIG__KAFKA__CLIENT_ID: payment-service
+      APP_CONFIG__ANALYTICS_TOPICS__PAYMENT_EVENTS_TOPIC: payment.analytics.events
+    command: [alembic, upgrade, head]
+    depends_on:
+      payment-db:
+        condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  payment-service:
+    <<: *python-service
+    build: ./payment-service
+    environment: *payment-environment
+    depends_on:
+      payment-migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck: *api-healthcheck
+
+  notification-migrate:
+    build: ./notification-service
+    environment: &notification-environment
+      APP_CONFIG__DB__USER: microshop
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__HOST: notification-db
+      APP_CONFIG__DB__PORT: "5432"
+      APP_CONFIG__DB__NAME: notification_service_db
+      APP_CONFIG__API__V1_PREFIX: /v1
+      APP_CONFIG__API__HOST: 0.0.0.0
+      APP_CONFIG__API__PORT: "8000"
+      APP_CONFIG__API__RELOAD: "false"
+      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
+      <<: *rabbitmq-environment
+      APP_CONFIG__RABBITMQ__VHOST: /
+    command: [alembic, upgrade, head]
+    depends_on:
+      notification-db:
+        condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  notification-service:
+    <<: *python-service
+    build: ./notification-service
+    environment: *notification-environment
+    depends_on:
+      notification-migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    healthcheck: *api-healthcheck
+
+  analytics-service:
+    <<: *python-service
+    build: ./analytics-service
+    environment:
+      APP_CONFIG__MONGODB__USER: microshop
+      APP_CONFIG__MONGODB__PASSWORD: ${MONGODB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__MONGODB__HOST: mongodb
+      APP_CONFIG__MONGODB__PORT: "27017"
+      APP_CONFIG__MONGODB__NAME: analytics_service_db
+      APP_CONFIG__MONGODB__AUTH_SOURCE: admin
+      APP_CONFIG__API__V1_PREFIX: /v1
+      APP_CONFIG__API__HOST: 0.0.0.0
+      APP_CONFIG__API__PORT: "8000"
+      APP_CONFIG__API__RELOAD: "false"
+      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '[]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
+      APP_CONFIG__KAFKA__BOOTSTRAP_SERVERS: kafka:29092
+      APP_CONFIG__KAFKA__CLIENT_ID: analytics-service
+      APP_CONFIG__KAFKA__GROUP_ID: analytics-service
+      APP_CONFIG__KAFKA__AUTO_OFFSET_RESET: earliest
+      APP_CONFIG__KAFKA__ENABLE_AUTO_COMMIT: "false"
+      APP_CONFIG__ANALYTICS_TOPICS__ORDER_EVENTS_TOPIC: order.analytics.events
+      APP_CONFIG__ANALYTICS_TOPICS__PAYMENT_EVENTS_TOPIC: payment.analytics.events
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck: *api-healthcheck
+
+  api-gateway:
+    <<: *python-service
+    build: ./api-gateway
+    environment:
+      APP_CONFIG__API__HOST: 0.0.0.0
+      APP_CONFIG__API__PORT: "8080"
+      APP_CONFIG__API__RELOAD: "false"
+      APP_CONFIG__API__V1_PREFIX: /v1
+      APP_CONFIG__MIDDLEWARE__ALLOW_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_METHODS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_HEADERS: '["*"]'
+      APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "true"
+      APP_CONFIG__SERVICES__AUTH_URL: http://auth-service:8000
+      APP_CONFIG__SERVICES__CATALOG_URL: http://catalog-service:8000
+      APP_CONFIG__SERVICES__ORDER_URL: http://order-service:8000
+      APP_CONFIG__SERVICES__PAYMENT_URL: http://payment-service:8000
+      APP_CONFIG__SERVICES__NOTIFICATION_URL: http://notification-service:8000
+      APP_CONFIG__SERVICES__ANALYTICS_URL: http://analytics-service:8000
+      APP_CONFIG__JWT__PUBLIC_KEY_PATH: certs/jwt-public.pem
+      APP_CONFIG__JWT__ALGORITHM: RS256
+      APP_CONFIG__HTTP_CLIENT__TIMEOUT_SECONDS: "10"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - frontend
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${FRONTEND_API_URL:-http://localhost:8080/v1}
+        NEXT_PUBLIC_SITE_URL: ${FRONTEND_SITE_URL:-http://localhost:3000}
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: "3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - frontend
+      - backend
+
+networks:
+  frontend:
+  backend:
+    internal: true
+
+volumes:
+  auth_db_data:
+  catalog_db_data:
+  order_db_data:
+  payment_db_data:
+  notification_db_data:
+  analytics_db_data:
+  rabbitmq_data:
+  kafka_data:

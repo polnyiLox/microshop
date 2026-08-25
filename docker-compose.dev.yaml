@@ -1,0 +1,29 @@
+services:
+  auth-service:
+    ports: ["8000:8000"]
+  catalog-service:
+    ports: ["8001:8000"]
+  order-service:
+    ports: ["8002:8000"]
+  payment-service:
+    ports: ["8003:8000"]
+  notification-service:
+    ports: ["8004:8000"]
+  analytics-service:
+    ports: ["8005:8000"]
+  rabbitmq:
+    ports: ["15672:15672"]
+  kafka:
+    ports: ["9092:9092"]
+  mongodb:
+    ports: ["27017:27017"]
+  auth-db:
+    ports: ["54320:5432"]
+  catalog-db:
+    ports: ["54321:5432"]
+  order-db:
+    ports: ["54322:5432"]
+  payment-db:
+    ports: ["54323:5432"]
+  notification-db:
+    ports: ["54324:5432"]
