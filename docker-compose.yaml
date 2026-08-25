@@ -186,6 +186,7 @@ services:
       APP_CONFIG__REFRESH_TOKEN_COOKIES__SECURE: "false"
       APP_CONFIG__REFRESH_TOKEN_COOKIES__HTTPONLY: "true"
       APP_CONFIG__REFRESH_TOKEN_COOKIES__SAME_SITE: lax
+      APP_CONFIG__INTERNAL_API__TOKEN: ${INTERNAL_API_TOKEN:-microshop_internal_dev_token}
     command: [alembic, upgrade, head]
     depends_on:
       auth-db:
@@ -288,6 +289,8 @@ services:
       APP_CONFIG__RABBITMQ__VHOST: /
       APP_CONFIG__KAFKA__CLIENT_ID: payment-service
       APP_CONFIG__ANALYTICS_TOPICS__PAYMENT_EVENTS_TOPIC: payment.analytics.events
+      APP_CONFIG__AUTH_CLIENT__BASE_URL: http://auth-service:8000/v1/internal
+      APP_CONFIG__AUTH_CLIENT__INTERNAL_TOKEN: ${INTERNAL_API_TOKEN:-microshop_internal_dev_token}
     command: [alembic, upgrade, head]
     depends_on:
       payment-db:
@@ -302,6 +305,8 @@ services:
     depends_on:
       payment-migrate:
         condition: service_completed_successfully
+      auth-service:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       kafka:
