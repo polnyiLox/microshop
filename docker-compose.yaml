@@ -206,10 +206,9 @@ services:
         condition: service_completed_successfully
     healthcheck: *api-healthcheck
 
-  catalog-service:
-    <<: *python-service
+  catalog-migrate:
     build: ./catalog-service
-    environment:
+    environment: &catalog-environment
       APP_CONFIG__DB__USER: microshop
       APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
       APP_CONFIG__DB__HOST: catalog-db
@@ -225,9 +224,20 @@ services:
       APP_CONFIG__MIDDLEWARE__ALLOW_CREDENTIALS: "false"
       <<: *rabbitmq-environment
       APP_CONFIG__RABBITMQ__VHOST: /
+    command: [alembic, upgrade, head]
     depends_on:
       catalog-db:
         condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  catalog-service:
+    <<: *python-service
+    build: ./catalog-service
+    environment: *catalog-environment
+    depends_on:
+      catalog-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     healthcheck: *api-healthcheck
