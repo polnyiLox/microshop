@@ -201,6 +201,13 @@ services:
       APP_CONFIG__REFRESH_TOKEN_COOKIES__HTTPONLY: "true"
       APP_CONFIG__REFRESH_TOKEN_COOKIES__SAME_SITE: lax
       APP_CONFIG__INTERNAL_API__TOKEN: ${INTERNAL_API_TOKEN:-microshop_internal_dev_token}
+      APP_CONFIG__REDIS__HOST: redis
+      APP_CONFIG__REDIS__PORT: "6379"
+      APP_CONFIG__REDIS__DB: "0"
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__TTL_SECONDS: "60"
+      APP_CONFIG__REDIS__KEY_PREFIX: auth
+      APP_CONFIG__REDIS__BALANCE_KEY: "balance:"
     command: [alembic, upgrade, head]
     depends_on:
       auth-db:
@@ -215,6 +222,8 @@ services:
     depends_on:
       auth-migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     healthcheck: *api-healthcheck
 
   catalog-migrate:
@@ -324,6 +333,15 @@ services:
       APP_CONFIG__ANALYTICS_TOPICS__PAYMENT_EVENTS_TOPIC: payment.analytics.events
       APP_CONFIG__AUTH_CLIENT__BASE_URL: http://auth-service:8000/v1/internal
       APP_CONFIG__AUTH_CLIENT__INTERNAL_TOKEN: ${INTERNAL_API_TOKEN:-microshop_internal_dev_token}
+      APP_CONFIG__REDIS__HOST: redis
+      APP_CONFIG__REDIS__PORT: "6379"
+      APP_CONFIG__REDIS__DB: "0"
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__TTL_SECONDS: "60"
+      APP_CONFIG__REDIS__KEY_PREFIX: payment
+      APP_CONFIG__REDIS__PAYMENT_KEY: "payment:"
+      APP_CONFIG__REDIS__ORDER_PAYMENTS_KEY: "order:"
+      APP_CONFIG__REDIS__USER_PAYMENTS_KEY: "user:"
     command: [alembic, upgrade, head]
     depends_on:
       payment-db:
@@ -343,6 +361,8 @@ services:
       rabbitmq:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck: *api-healthcheck
 
@@ -408,10 +428,19 @@ services:
       APP_CONFIG__KAFKA__ENABLE_AUTO_COMMIT: "false"
       APP_CONFIG__ANALYTICS_TOPICS__ORDER_EVENTS_TOPIC: order.analytics.events
       APP_CONFIG__ANALYTICS_TOPICS__PAYMENT_EVENTS_TOPIC: payment.analytics.events
+      APP_CONFIG__REDIS__HOST: redis
+      APP_CONFIG__REDIS__PORT: "6379"
+      APP_CONFIG__REDIS__DB: "0"
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__TTL_SECONDS: "60"
+      APP_CONFIG__REDIS__KEY_PREFIX: analytics
+      APP_CONFIG__REDIS__OVERVIEW_KEY: overview
     depends_on:
       mongodb:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck: *api-healthcheck
 
