@@ -172,6 +172,70 @@ services:
       start_period: 5s
     networks: [backend]
 
+  prometheus:
+    image: prom/prometheus:v3.11.3
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      catalog-service:
+        condition: service_healthy
+    ports:
+      - "9090:9090"
+    networks: [backend]
+
+  loki:
+    image: grafana/loki:3.7.4
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks: [backend]
+
+  alloy:
+    image: grafana/alloy:v1.18.0
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - --disable-reporting
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      - loki
+    ports:
+      - "12345:12345"
+    networks: [backend]
+
+  grafana:
+    image: grafana/grafana:13.1.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-microshop_dev_password}
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    ports:
+      - "3001:3000"
+    networks:
+      - frontend
+      - backend
+
   kafka:
     image: apache/kafka:4.3.1
     restart: unless-stopped
@@ -560,3 +624,7 @@ volumes:
   rabbitmq_data:
   kafka_data:
   minio_data:
+  prometheus_data:
+  loki_data:
+  alloy_data:
+  grafana_data:
