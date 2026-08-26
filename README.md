@@ -14,7 +14,10 @@ docker compose up --build
 
 - frontend: <http://localhost:3000>;
 - API Gateway: <http://localhost:8080>;
-- Swagger Gateway: <http://localhost:8080/docs>.
+- Swagger Gateway: <http://localhost:8080/docs>;
+- Grafana: <http://localhost:3001>;
+- Prometheus: <http://localhost:9090>;
+- Grafana Alloy: <http://localhost:12345>.
 
 Для разработки с прямым доступом к Swagger каждого сервиса и инфраструктуре:
 
@@ -39,3 +42,29 @@ docker compose down --volumes
 ```
 
 Compose автоматически ждёт готовность баз и брокеров, выполняет Alembic-миграции и только затем запускает API. Внутренние сервисы общаются по DNS-именам Docker; наружу в обычном режиме открыты только frontend и Gateway.
+
+## Логи и метрики catalog-service
+
+Catalog-service пишет логи в stdout. Grafana Alloy читает логи Docker-контейнеров и отправляет их в Loki. Prometheus каждые 15 секунд получает HTTP-метрики с `catalog-service:8000/metrics`. Оба источника автоматически добавляются в Grafana.
+
+После запуска откройте Grafana на <http://localhost:3001> и войдите с именем `admin`. Пароль задаётся переменной `GRAFANA_PASSWORD`; локальное значение по умолчанию — `microshop_dev_password`.
+
+Логи можно посмотреть в разделе **Explore**, выбрав источник `Loki` и запрос:
+
+```logql
+{service="catalog-service"}
+```
+
+Для просмотра количества HTTP-запросов выберите источник `Prometheus` и выполните:
+
+```promql
+sum by (method, path, status) (rate(catalog_http_requests_total[5m]))
+```
+
+Для средней длительности запросов:
+
+```promql
+rate(catalog_http_request_duration_seconds_sum[5m])
+/
+rate(catalog_http_request_duration_seconds_count[5m])
+```
