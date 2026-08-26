@@ -273,6 +273,15 @@ services:
       <<: [*rabbitmq-environment, *kafka-environment]
       APP_CONFIG__KAFKA__CLIENT_ID: order-service
       APP_CONFIG__ANALYTICS_TOPICS__ORDER_EVENTS_TOPIC: order.analytics.events
+      APP_CONFIG__REDIS__HOST: redis
+      APP_CONFIG__REDIS__PORT: "6379"
+      APP_CONFIG__REDIS__DB: "0"
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__TTL_SECONDS: "60"
+      APP_CONFIG__REDIS__KEY_PREFIX: order
+      APP_CONFIG__REDIS__USER_ORDERS_KEY: "user:"
+      APP_CONFIG__REDIS__SELLER_ORDERS_KEY: "seller:"
+      APP_CONFIG__REDIS__ORDER_ITEMS_KEY: ":items:"
     command: [alembic, upgrade, head]
     depends_on:
       order-db:
@@ -292,6 +301,8 @@ services:
       rabbitmq:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck: *api-healthcheck
 
@@ -349,6 +360,13 @@ services:
       APP_CONFIG__API__RELOAD: "false"
       <<: *rabbitmq-environment
       APP_CONFIG__RABBITMQ__VHOST: /
+      APP_CONFIG__REDIS__HOST: redis
+      APP_CONFIG__REDIS__PORT: "6379"
+      APP_CONFIG__REDIS__DB: "0"
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__TTL_SECONDS: "60"
+      APP_CONFIG__REDIS__KEY_PREFIX: notification
+      APP_CONFIG__REDIS__USER_NOTIFICATIONS_KEY: "user:"
     command: [alembic, upgrade, head]
     depends_on:
       notification-db:
@@ -364,6 +382,8 @@ services:
       notification-migrate:
         condition: service_completed_successfully
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck: *api-healthcheck
 
