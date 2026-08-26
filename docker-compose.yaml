@@ -152,6 +152,26 @@ services:
       start_period: 5s
     networks: [backend]
 
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-microshop_dev_password}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:9000/minio/health/live]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    networks: [backend]
+
   kafka:
     image: apache/kafka:4.3.1
     restart: unless-stopped
@@ -246,6 +266,14 @@ services:
       APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
       APP_CONFIG__REDIS__TTL_SECONDS: "60"
       APP_CONFIG__REDIS__KEY_PREFIX: catalog
+      APP_CONFIG__S3__ACCESS_KEY: minio
+      APP_CONFIG__S3__SECRET_KEY: ${MINIO_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__S3__ENDPOINT_URL: http://minio:9000
+      APP_CONFIG__S3__PUBLIC_ENDPOINT_URL: http://localhost:9000
+      APP_CONFIG__S3__SERVICE_NAME: s3
+      APP_CONFIG__S3__REGION_NAME: us-east-1
+      APP_CONFIG__S3__BUCKET_NAME: catalog-images
+      APP_CONFIG__S3__PRESIGNED_URL_EXPIRE_SECONDS: "3600"
     command: [alembic, upgrade, head]
     depends_on:
       catalog-db:
@@ -263,6 +291,8 @@ services:
       rabbitmq:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck: *api-healthcheck
 
@@ -529,3 +559,4 @@ volumes:
   analytics_db_data:
   rabbitmq_data:
   kafka_data:
+  minio_data:
