@@ -42,4 +42,4 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets:
-          - api-gateway:8000
+          - api-gateway:8080
