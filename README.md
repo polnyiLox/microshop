@@ -1,33 +1,102 @@
 # MicroShop
 
-Корневой Compose запускает весь MicroShop одной командой, сохраняя изоляцию микросервисов: у каждого сервиса собственная база и миграции, а RabbitMQ и Kafka используются как общая событийная инфраструктура.
+Учебный marketplace, построенный как набор асинхронных микросервисов. Проект показывает слоистую архитектуру FastAPI-приложений, событийное взаимодействие, отдельные хранилища данных, кэширование, наблюдаемость и контейнерный запуск всей системы.
+
+## Архитектура
+
+| Компонент | Ответственность | Хранилище |
+|---|---|---|
+| API Gateway | JWT-проверка, роли, маршрутизация HTTP и WebSocket | — |
+| Auth service | пользователи, refresh-токены, роли и баланс | PostgreSQL |
+| Catalog service | товары, остатки и изображения в S3 | PostgreSQL, MinIO |
+| Order service | заказы и жизненный цикл заказа | PostgreSQL |
+| Payment service | списание, возврат и статусы платежей | PostgreSQL |
+| Notification service | уведомления и доставка по WebSocket | PostgreSQL |
+| Analytics service | обработка событий и аналитические отчёты | MongoDB |
+
+Внутри доменных сервисов соблюдается направление зависимостей `API → Service → Repository → DB`. Синхронные запросы проходят через HTTP, команды и доменные события — через RabbitMQ, аналитические события — через Kafka. Redis используется как необязательный кэш: при его недоступности сервисы продолжают читать данные из основной БД.
+
+## Технологии
+
+- Python, FastAPI, Pydantic, SQLAlchemy и Alembic;
+- PostgreSQL и MongoDB;
+- RabbitMQ и Kafka;
+- Redis и MinIO (S3 API);
+- Docker Compose;
+- Prometheus, Grafana, Loki и Grafana Alloy;
+- Pytest, Testcontainers и GitHub Actions.
 
 ## Быстрый запуск
 
-Требуется Docker Desktop с Compose v2/v5. Файл `.env` необязателен: безопасные локальные значения уже имеют значения по умолчанию. Для своих паролей скопируйте `.env.example` в `.env`.
+Понадобятся Docker Desktop и Docker Compose. Сначала создайте локальный файл с секретами:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Замените все значения `change-this-*` в `.env`. Файл исключён из Git. Затем запустите систему:
 
 ```powershell
 docker compose up --build
 ```
 
-После запуска доступны:
+После успешного запуска доступны:
 
-- frontend: <http://localhost:3000>;
-- API Gateway: <http://localhost:8080>;
-- Swagger Gateway: <http://localhost:8080/docs>;
-- Grafana: <http://localhost:3001>;
-- Prometheus: <http://localhost:9090>;
-- Grafana Alloy: <http://localhost:12345>.
+- frontend — <http://localhost:3000>;
+- API Gateway — <http://localhost:8080>;
+- Swagger Gateway — <http://localhost:8080/docs>;
+- Grafana — <http://localhost:3001>;
+- Prometheus — <http://localhost:9090>;
+- Grafana Alloy — <http://localhost:12345>;
+- MinIO API и Console — <http://localhost:9000> и <http://localhost:9001>.
 
-Для разработки с прямым доступом к Swagger каждого сервиса и инфраструктуре:
+Compose ждёт готовность инфраструктуры, запускает Alembic-миграции и только после них поднимает API. В обычном режиме внутренние сервисы и базы не публикуют порты на хост.
+
+## Режим разработки
+
+Чтобы открыть Swagger каждого сервиса и инфраструктурные порты, примените override-файл:
 
 ```powershell
 docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up --build
 ```
 
-Сервисные API будут доступны на портах `8000`–`8005`, RabbitMQ UI — на `15672`, Kafka — на `9092`, MongoDB — на `27017`, PostgreSQL — на `54320`–`54324`.
+Swagger будет доступен на портах:
 
-## Управление
+- auth — <http://localhost:8000/docs>;
+- catalog — <http://localhost:8001/docs>;
+- order — <http://localhost:8002/docs>;
+- payment — <http://localhost:8003/docs>;
+- notification — <http://localhost:8004/docs>;
+- analytics — <http://localhost:8005/docs>.
+
+RabbitMQ Management UI публикуется на `15672`, Kafka — на `9092`, MongoDB — на `27017`, PostgreSQL сервисов — на `54320`–`54324`.
+
+## Тесты
+
+В сервисах разделены три уровня проверок:
+
+- unit — бизнес-правила и адаптеры с изолированными зависимостями;
+- integration — service + repository + настоящая тестовая БД;
+- e2e — HTTP API + service + repository + настоящая тестовая БД.
+
+Интеграционные и e2e-тесты используют Testcontainers, поэтому для них должен работать Docker Desktop. Пример запуска внутри сервиса:
+
+```powershell
+uv sync --group dev
+uv run pytest -q
+```
+
+## Наблюдаемость
+
+Все приложения пишут логи в stdout. Grafana Alloy получает логи контейнеров и отправляет их в Loki. Prometheus опрашивает `/metrics` у каждого backend-компонента, а Grafana автоматически получает оба источника данных.
+
+Пример запроса логов в Grafana Explore:
+
+```logql
+{service="order-service"}
+```
+
+## Управление окружением
 
 ```powershell
 docker compose ps
@@ -35,36 +104,8 @@ docker compose logs -f api-gateway
 docker compose down
 ```
 
-Удаление всех локальных данных выполняйте только когда они больше не нужны:
+Удаление томов стирает локальные данные и должно выполняться осознанно:
 
 ```powershell
 docker compose down --volumes
-```
-
-Compose автоматически ждёт готовность баз и брокеров, выполняет Alembic-миграции и только затем запускает API. Внутренние сервисы общаются по DNS-именам Docker; наружу в обычном режиме открыты только frontend и Gateway.
-
-## Логи и метрики catalog-service
-
-Catalog-service пишет логи в stdout. Grafana Alloy читает логи Docker-контейнеров и отправляет их в Loki. Prometheus каждые 15 секунд получает HTTP-метрики с `catalog-service:8000/metrics`. Оба источника автоматически добавляются в Grafana.
-
-После запуска откройте Grafana на <http://localhost:3001> и войдите с именем `admin`. Пароль задаётся переменной `GRAFANA_PASSWORD`; локальное значение по умолчанию — `microshop_dev_password`.
-
-Логи можно посмотреть в разделе **Explore**, выбрав источник `Loki` и запрос:
-
-```logql
-{service="catalog-service"}
-```
-
-Для просмотра количества HTTP-запросов выберите источник `Prometheus` и выполните:
-
-```promql
-sum by (method, path, status) (rate(catalog_http_requests_total[5m]))
-```
-
-Для средней длительности запросов:
-
-```promql
-rate(catalog_http_request_duration_seconds_sum[5m])
-/
-rate(catalog_http_request_duration_seconds_count[5m])
 ```
