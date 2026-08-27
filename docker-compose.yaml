@@ -25,7 +25,7 @@ x-python-service: &python-service
 
 x-rabbitmq-environment: &rabbitmq-environment
   APP_CONFIG__RABBITMQ__USER: microservices
-  APP_CONFIG__RABBITMQ__PASSWORD: ${RABBITMQ_PASSWORD:-microshop_dev_password}
+  APP_CONFIG__RABBITMQ__PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
   APP_CONFIG__RABBITMQ__HOST: rabbitmq
   APP_CONFIG__RABBITMQ__PORT: "5672"
 
@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: microshop
-      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       POSTGRES_DB: auth_service_db
     volumes:
       - auth_db_data:/var/lib/postgresql/data
@@ -53,7 +53,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: microshop
-      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       POSTGRES_DB: catalog_service_db
     volumes:
       - catalog_db_data:/var/lib/postgresql/data
@@ -67,7 +67,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: microshop
-      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       POSTGRES_DB: order_service_db
     volumes:
       - order_db_data:/var/lib/postgresql/data
@@ -81,7 +81,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: microshop
-      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       POSTGRES_DB: payment_service_db
     volumes:
       - payment_db_data:/var/lib/postgresql/data
@@ -95,7 +95,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: microshop
-      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      POSTGRES_PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       POSTGRES_DB: notification_service_db
     volumes:
       - notification_db_data:/var/lib/postgresql/data
@@ -109,7 +109,7 @@ services:
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: microshop
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-microshop_dev_password}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:?Set MONGODB_PASSWORD in .env}
       MONGO_INITDB_DATABASE: analytics_service_db
     volumes:
       - analytics_db_data:/data/db
@@ -126,7 +126,7 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: microservices
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-microshop_dev_password}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
       RABBITMQ_DEFAULT_VHOST: /
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
@@ -142,7 +142,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
@@ -157,7 +157,7 @@ services:
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-microshop_dev_password}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:?Set MINIO_PASSWORD in .env}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -223,7 +223,7 @@ services:
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-microshop_dev_password}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD in .env}
     volumes:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
@@ -267,7 +267,7 @@ services:
     build: ./auth-service
     environment: &auth-environment
       APP_CONFIG__DB__USER: microshop
-      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       APP_CONFIG__DB__HOST: auth-db
       APP_CONFIG__DB__PORT: "5432"
       APP_CONFIG__DB__NAME: auth_service_db
@@ -284,11 +284,11 @@ services:
       APP_CONFIG__REFRESH_TOKEN_COOKIES__SECURE: "false"
       APP_CONFIG__REFRESH_TOKEN_COOKIES__HTTPONLY: "true"
       APP_CONFIG__REFRESH_TOKEN_COOKIES__SAME_SITE: lax
-      APP_CONFIG__INTERNAL_API__TOKEN: ${INTERNAL_API_TOKEN:-microshop_internal_dev_token}
+      APP_CONFIG__INTERNAL_API__TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env}
       APP_CONFIG__REDIS__HOST: redis
       APP_CONFIG__REDIS__PORT: "6379"
       APP_CONFIG__REDIS__DB: "0"
-      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
       APP_CONFIG__REDIS__TTL_SECONDS: "60"
       APP_CONFIG__REDIS__KEY_PREFIX: auth
       APP_CONFIG__REDIS__BALANCE_KEY: "balance:"
@@ -314,7 +314,7 @@ services:
     build: ./catalog-service
     environment: &catalog-environment
       APP_CONFIG__DB__USER: microshop
-      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       APP_CONFIG__DB__HOST: catalog-db
       APP_CONFIG__DB__PORT: "5432"
       APP_CONFIG__DB__NAME: catalog_service_db
@@ -327,11 +327,11 @@ services:
       APP_CONFIG__REDIS__HOST: redis
       APP_CONFIG__REDIS__PORT: "6379"
       APP_CONFIG__REDIS__DB: "0"
-      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
       APP_CONFIG__REDIS__TTL_SECONDS: "60"
       APP_CONFIG__REDIS__KEY_PREFIX: catalog
       APP_CONFIG__S3__ACCESS_KEY: minio
-      APP_CONFIG__S3__SECRET_KEY: ${MINIO_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__S3__SECRET_KEY: ${MINIO_PASSWORD:?Set MINIO_PASSWORD in .env}
       APP_CONFIG__S3__ENDPOINT_URL: http://minio:9000
       APP_CONFIG__S3__PUBLIC_ENDPOINT_URL: http://localhost:9000
       APP_CONFIG__S3__SERVICE_NAME: s3
@@ -364,7 +364,7 @@ services:
     build: ./order-service
     environment: &order-environment
       APP_CONFIG__DB__USER: microshop
-      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       APP_CONFIG__DB__HOST: order-db
       APP_CONFIG__DB__PORT: "5432"
       APP_CONFIG__DB__NAME: order_service_db
@@ -379,7 +379,7 @@ services:
       APP_CONFIG__REDIS__HOST: redis
       APP_CONFIG__REDIS__PORT: "6379"
       APP_CONFIG__REDIS__DB: "0"
-      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
       APP_CONFIG__REDIS__TTL_SECONDS: "60"
       APP_CONFIG__REDIS__KEY_PREFIX: order
       APP_CONFIG__REDIS__USER_ORDERS_KEY: "user:"
@@ -413,7 +413,7 @@ services:
     build: ./payment-service
     environment: &payment-environment
       APP_CONFIG__DB__USER: microshop
-      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       APP_CONFIG__DB__HOST: payment-db
       APP_CONFIG__DB__PORT: "5432"
       APP_CONFIG__DB__NAME: payment_service_db
@@ -426,11 +426,11 @@ services:
       APP_CONFIG__KAFKA__CLIENT_ID: payment-service
       APP_CONFIG__ANALYTICS_TOPICS__PAYMENT_EVENTS_TOPIC: payment.analytics.events
       APP_CONFIG__AUTH_CLIENT__BASE_URL: http://auth-service:8000/v1/internal
-      APP_CONFIG__AUTH_CLIENT__INTERNAL_TOKEN: ${INTERNAL_API_TOKEN:-microshop_internal_dev_token}
+      APP_CONFIG__AUTH_CLIENT__INTERNAL_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env}
       APP_CONFIG__REDIS__HOST: redis
       APP_CONFIG__REDIS__PORT: "6379"
       APP_CONFIG__REDIS__DB: "0"
-      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
       APP_CONFIG__REDIS__TTL_SECONDS: "60"
       APP_CONFIG__REDIS__KEY_PREFIX: payment
       APP_CONFIG__REDIS__PAYMENT_KEY: "payment:"
@@ -464,7 +464,7 @@ services:
     build: ./notification-service
     environment: &notification-environment
       APP_CONFIG__DB__USER: microshop
-      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__DB__PASSWORD: ${MICROSHOP_DB_PASSWORD:?Set MICROSHOP_DB_PASSWORD in .env}
       APP_CONFIG__DB__HOST: notification-db
       APP_CONFIG__DB__PORT: "5432"
       APP_CONFIG__DB__NAME: notification_service_db
@@ -477,7 +477,7 @@ services:
       APP_CONFIG__REDIS__HOST: redis
       APP_CONFIG__REDIS__PORT: "6379"
       APP_CONFIG__REDIS__DB: "0"
-      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
       APP_CONFIG__REDIS__TTL_SECONDS: "60"
       APP_CONFIG__REDIS__KEY_PREFIX: notification
       APP_CONFIG__REDIS__USER_NOTIFICATIONS_KEY: "user:"
@@ -506,7 +506,7 @@ services:
     build: ./analytics-service
     environment:
       APP_CONFIG__MONGODB__USER: microshop
-      APP_CONFIG__MONGODB__PASSWORD: ${MONGODB_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__MONGODB__PASSWORD: ${MONGODB_PASSWORD:?Set MONGODB_PASSWORD in .env}
       APP_CONFIG__MONGODB__HOST: mongodb
       APP_CONFIG__MONGODB__PORT: "27017"
       APP_CONFIG__MONGODB__NAME: analytics_service_db
@@ -525,7 +525,7 @@ services:
       APP_CONFIG__REDIS__HOST: redis
       APP_CONFIG__REDIS__PORT: "6379"
       APP_CONFIG__REDIS__DB: "0"
-      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:-microshop_dev_password}
+      APP_CONFIG__REDIS__PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
       APP_CONFIG__REDIS__TTL_SECONDS: "60"
       APP_CONFIG__REDIS__KEY_PREFIX: analytics
       APP_CONFIG__REDIS__OVERVIEW_KEY: overview
