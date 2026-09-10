@@ -6,13 +6,14 @@
 
 | Компонент | Ответственность | Хранилище |
 |---|---|---|
-| API Gateway | JWT-проверка, роли, маршрутизация HTTP и WebSocket | — |
-| Auth service | пользователи, refresh-токены, роли и баланс | PostgreSQL |
-| Catalog service | товары, остатки и изображения в S3 | PostgreSQL, MinIO |
-| Order service | заказы и жизненный цикл заказа | PostgreSQL |
-| Payment service | списание, возврат и статусы платежей | PostgreSQL |
-| Notification service | уведомления и доставка по WebSocket | PostgreSQL |
-| Analytics service | обработка событий и аналитические отчёты | MongoDB |
+| [API Gateway](api-gateway/) | JWT-проверка, роли, маршрутизация HTTP и WebSocket | — |
+| [Auth service](auth-service/) | пользователи, refresh-токены, роли и баланс | PostgreSQL |
+| [Catalog service](catalog-service/) | товары, остатки и изображения в S3 | PostgreSQL, MinIO |
+| [Order service](order-service/) | заказы и жизненный цикл заказа | PostgreSQL |
+| [Payment service](payment-service/) | списание, возврат и статусы платежей | PostgreSQL |
+| [Notification service](notification-service/) | уведомления и доставка по WebSocket | PostgreSQL |
+| [Analytics service](analytics-service/) | обработка событий и аналитические отчёты | MongoDB |
+| [Frontend](frontend/) | интерфейсы покупателя, продавца и администратора | — |
 
 Внутри доменных сервисов соблюдается направление зависимостей `API → Service → Repository → DB`. Синхронные запросы проходят через HTTP, команды и доменные события — через RabbitMQ, аналитические события — через Kafka. Redis используется как необязательный кэш: при его недоступности сервисы продолжают читать данные из основной БД.
 
@@ -28,7 +29,19 @@
 
 ## Быстрый запуск
 
-Понадобятся Docker Desktop и Docker Compose. Сначала создайте локальный файл с секретами:
+Понадобятся Docker Desktop, Docker Compose и OpenSSL.
+
+Сгенерируйте локальную пару JWT-ключей. Приватный ключ остаётся только в
+`auth-service` и исключён из Git, а Gateway получает только публичный ключ:
+
+```powershell
+New-Item -ItemType Directory -Force auth-service/certs | Out-Null
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out auth-service/certs/jwt-private.pem
+openssl pkey -in auth-service/certs/jwt-private.pem -pubout -out auth-service/certs/jwt-public.pem
+Copy-Item auth-service/certs/jwt-public.pem api-gateway/certs/jwt-public.pem -Force
+```
+
+Затем создайте локальный файл с секретами:
 
 ```powershell
 Copy-Item .env.example .env
@@ -44,13 +57,13 @@ docker compose up --build
 
 - frontend — <http://localhost:3000>;
 - API Gateway — <http://localhost:8080>;
-- Swagger Gateway — <http://localhost:8080/docs>;
+- OpenAPI Gateway — <http://localhost:8080/docs> (proxy-маршруты намеренно скрыты);
 - Grafana — <http://localhost:3001>;
 - Prometheus — <http://localhost:9090>;
 - Grafana Alloy — <http://localhost:12345>;
 - MinIO API и Console — <http://localhost:9000> и <http://localhost:9001>.
 
-Compose ждёт готовность инфраструктуры, запускает Alembic-миграции и только после них поднимает API. В обычном режиме внутренние сервисы и базы не публикуют порты на хост.
+Compose ждёт готовность инфраструктуры, запускает Alembic-миграции и только после них поднимает API. В обычном режиме доменные API и базы не публикуют порты на хост.
 
 ## Режим разработки
 
@@ -85,6 +98,8 @@ RabbitMQ Management UI публикуется на `15672`, Kafka — на `9092
 uv sync --group dev
 uv run pytest -q
 ```
+
+Каждый сервис содержит собственный workflow `.github/workflows/ci-cd.yaml`: pull request запускает тесты, а push в `master` после успешной проверки публикует Docker-образ в GitHub Container Registry.
 
 ## Наблюдаемость
 
