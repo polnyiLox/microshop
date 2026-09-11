@@ -1,0 +1,27 @@
+[project]
+name = "catalog-service"
+version = "0.1.0"
+description = "Product catalog and inventory service for MicroShop"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aio-pika>=10.0.1",
+    "aiobotocore>=3.9.0",
+    "alembic>=1.19.1",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "prometheus-client>=0.26.0",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "redis>=8.1.0",
+    "sqlalchemy>=2.0.52",
+    "uvicorn>=0.52.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "testcontainers>=4.15.0",
+]

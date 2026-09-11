@@ -1,0 +1,96 @@
+services:
+
+  postgres:
+    image: postgres:17
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    ports:
+      - "5435:5432"
+
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+
+    env_file:
+      - .env
+
+    command:
+      - uv
+      - run
+      - alembic
+      - upgrade
+      - head
+
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+
+    env_file:
+      - .env
+
+    ports:
+      - "${APP_CONFIG__API__PORT:-8004}:8000"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+
+  redis:
+    image: redis:7-alpine
+
+    environment:
+      REDIS_PASSWORD: ${APP_CONFIG__REDIS__PASSWORD}
+
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+
+volumes:
+  postgres_dev_data:

@@ -1,0 +1,32 @@
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      APP_CONFIG__SERVICES__AUTH_URL: http://host.docker.internal:8000
+      APP_CONFIG__SERVICES__CATALOG_URL: http://host.docker.internal:8001
+      APP_CONFIG__SERVICES__ORDER_URL: http://host.docker.internal:8002
+      APP_CONFIG__SERVICES__PAYMENT_URL: http://host.docker.internal:8003
+      APP_CONFIG__SERVICES__NOTIFICATION_URL: http://host.docker.internal:8004
+      APP_CONFIG__SERVICES__ANALYTICS_URL: http://host.docker.internal:8005
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

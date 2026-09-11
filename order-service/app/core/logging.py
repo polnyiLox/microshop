@@ -1,0 +1,12 @@
+import logging
+import sys
+
+
+def configure_logging(level: str = "INFO") -> None:
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s | %(levelname)s | order-service | "
+               "%(name)s | %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+        force=True
+    )

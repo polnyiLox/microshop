@@ -1,0 +1,23 @@
+[project]
+name = "analytics-service"
+version = "0.1.0"
+description = "Event-driven analytics service for MicroShop"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiokafka>=0.14.0",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "prometheus-client>=0.26.0",
+    "pydantic-settings>=2.15.0",
+    "pymongo>=4.17.0",
+    "redis>=8.1.0",
+    "uvicorn>=0.52.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "testcontainers>=4.15.0",
+]

@@ -1,0 +1,115 @@
+services:
+
+  postgres:
+    image: postgres:17
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    expose:
+      - "5432"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:4-management
+
+    restart: unless-stopped
+
+    environment:
+      RABBITMQ_DEFAULT_USER: ${APP_CONFIG__RABBITMQ__USER}
+      RABBITMQ_DEFAULT_PASS: ${APP_CONFIG__RABBITMQ__PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: ${APP_CONFIG__RABBITMQ__VHOST}
+
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+    expose:
+      - "5672"
+
+    ports:
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    env_file:
+      - .env
+
+    command:
+      - alembic
+      - upgrade
+      - head
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    ports:
+      - "${APP_CONFIG__API__PORT:-8000}:8000"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    stop_grace_period: 30s
+
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
