@@ -44,6 +44,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --dev
         working-directory: ${{ matrix.service }}
+      - name: Generate test JWT keys
+        if: matrix.service == 'auth-service'
+        working-directory: auth-service
+        run: |
+          mkdir -p certs
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out certs/jwt-private.pem
+          openssl pkey -in certs/jwt-private.pem -pubout -out certs/jwt-public.pem
       - name: Run test suite
         run: uv run python -m pytest -q
         working-directory: ${{ matrix.service }}
