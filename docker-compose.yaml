@@ -293,6 +293,8 @@ services:
       APP_CONFIG__REDIS__KEY_PREFIX: auth
       APP_CONFIG__REDIS__BALANCE_KEY: "balance:"
     command: [alembic, upgrade, head]
+    volumes:
+      - ./auth-service/certs:/app/certs:ro
     depends_on:
       auth-db:
         condition: service_healthy
@@ -303,6 +305,8 @@ services:
     <<: *python-service
     build: ./auth-service
     environment: *auth-environment
+    volumes:
+      - ./auth-service/certs:/app/certs:ro
     depends_on:
       auth-migrate:
         condition: service_completed_successfully
