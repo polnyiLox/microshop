@@ -22,7 +22,7 @@ RUN uv sync --frozen --no-dev
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./
-COPY certs ./certs
+RUN mkdir -p certs
 
 
 # ============================================================
