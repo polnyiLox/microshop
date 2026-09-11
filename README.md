@@ -99,7 +99,7 @@ uv sync --group dev
 uv run pytest -q
 ```
 
-Каждый сервис содержит собственный workflow `.github/workflows/ci-cd.yaml`: pull request запускает тесты, а push в `master` после успешной проверки публикует Docker-образ в GitHub Container Registry.
+Корневой workflow `.github/workflows/ci-cd.yaml` параллельно проверяет все backend-сервисы, frontend и Docker Compose. После успешного push в `master` он публикует образы всех компонентов в GitHub Container Registry.
 
 ## Наблюдаемость
 
