@@ -45,7 +45,7 @@ jobs:
         run: uv sync --frozen --dev
         working-directory: ${{ matrix.service }}
       - name: Run test suite
-        run: uv run pytest -q
+        run: uv run python -m pytest -q
         working-directory: ${{ matrix.service }}
 
   frontend-checks:
